@@ -1,0 +1,411 @@
+ScreenManager:
+    MainInfoScreen:
+    SettingsMainInfoScreen:
+    DataAnalysisScreen:
+    TestScreen:
+    AllFunctionsScreen:
+
+<AllFunctionsScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        orientation: "vertical"
+        background_color: (0,0,0,1)
+        canvas.before:
+            Color:
+                rgba: self.background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        Button:
+            text: "See data"
+            on_press: app.gosettingsmaininfoscreen()
+        Button:
+            text: "Analyze data"
+            on_press: app.godataanalysisscreen()
+        Label:
+            size_hint: 1, .2
+            text:
+                "App developed by Andres Rodriguez, for more information about the app and how it works contact andreswii6@hotmail.com or andres.rodriguez10@udea.edu.co"
+
+
+<SettingsMainInfoScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        background_color: (0,0,0,1)
+        canvas.before:
+            Color:
+                rgba: self.background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        Label:
+            text: "Settings to show information"
+            size_hint: 1,0.25
+            font_size: 45
+        BoxLayout:
+            size_hint: 1,0.2
+            Label:
+                text: "Serial port that will be used"
+                font_size: 25
+            TextInput:
+                id: comPort
+                text: "com3"
+                font_size: 25
+        BoxLayout:
+            size_hint: 1,0.2
+            Label:
+                text: "Refresh rate that will be used (in seconds)"
+                font_size: 25
+            TextInput:
+                id: refreshRate
+                text: "0.2"
+                font_size: 25
+        BoxLayout:
+            size_hint: 1,0.2
+            Label:
+                text: "Serial baud rate that will be used"
+                font_size: 25
+            TextInput:
+                id: baudRate
+                text: "9600"
+                font_size: 25
+        BoxLayout:
+            orientation: "horizontal"
+            padding: [50,50,50,50]
+            Label:
+                text: "Units that will be used"
+                font_size: 25
+            BoxLayout:
+                BoxLayout:
+                    orientation: "vertical"
+                    CheckBox:
+                        group: "unitsGroup"
+                        active: True
+                        on_active: app.changeunitstometers()
+                    CheckBox:
+                        group: "unitsGroup"
+                        on_active: app.showunits()
+                BoxLayout:
+                    orientation: "vertical"
+                    Label:
+                        text: "Meters, degrees and seconds"
+                        font_size: 30
+                    Label:
+                        text: "No units"
+                        font_size: 30
+        BoxLayout:
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text: "Min value of acceleration"
+                TextInput:
+                    id: minAcceleration
+                    text: "-70"
+                Label:
+                    text: "Max value of acceleration"
+                TextInput:
+                    id: maxAcceleration
+                    text: "70"
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text: "Min value of rotation"
+                TextInput:
+                    id: minRotation
+                    text: "-10"
+                Label:
+                    text: "Max value of rotation"
+                TextInput:
+                    id: maxRotation
+                    text: "10"
+            BoxLayout:
+                orientation: "vertical"
+                Label:
+                    text: "Min value of altitude"
+                TextInput:
+                    id: minAltitude
+                    text: "0"
+                Label:
+                    text: "Max value of altitude"
+                TextInput:
+                    id: maxAltitude
+                    text: "70"
+        Label:
+            text: "Note: Make sure that the serial port is online and sending data"
+            size_hint: 1,.2
+        Button:
+            text: "Continue"
+            size_hint: 1,.3
+            font_size: 25
+            on_release:root.savechangesonsettingsandgomaininfoscreen()
+
+<MainInfoScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        background_color: (0,0,0,1)
+        canvas.before:
+            Color:
+                rgba: self.background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+
+        BoxLayout:
+            orientation: "vertical"
+
+            Label:
+                id: rocketInfo
+                text: "Rocket INFO"
+                font_size: 30
+
+            BoxLayout:
+                Label:
+                    id: rocketAccelerationX
+                    text: "Acceleration X"
+                    font_size: 30
+
+                Label:
+                    id: rocketAccelerationY
+                    text: "Acceleration Y"
+                    font_size: 30
+                Label:
+                    id: rocketAccelerationZ
+                    text: "Acceleration Z"
+                    font_size: 30
+            BoxLayout:
+                Label:
+                    id: rocketRotationX
+                    text: "Rotation X"
+                    font_size: 30
+                Label:
+                    id: rocketRotationY
+                    text: "Rotation Y"
+                    font_size: 30
+                Label:
+                    id: rocketRotationZ
+                    text: "Rotation Z"
+                    font_size: 30
+            Label:
+                id:rocketAltitude
+                text: "Altitude"
+                font_size: 30
+            BoxLayout:
+                Label:
+                    id: rocketLatitude
+                    text: "Latitude"
+                    font_size: 30
+                Label:
+                    id: rocketLongitude
+                    text: "Longitude"
+                    font_size: 30
+
+        BoxLayout:
+            size_hint: 1,.6
+            id: graphsBox
+
+        BoxLayout:
+            size_hint: 1,.1
+            Button:
+                id: recordDataButton
+                text: "Record data"
+                on_release: root.recorddataprocess()
+
+<DataAnalysisScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        background_color: (0,0,0,1)
+        canvas.before:
+            Color:
+                rgba: self.background_color
+            Rectangle:
+                size: self.size
+                pos: self.pos
+        Button:
+            text: "Import data"
+            size_hint: 1,.2
+            on_release: root.getdata()
+        BoxLayout:
+            size_hint: 1,.2
+            Label:
+                id: refreshRateLabel
+                text: "Refresh rate"
+            Label:
+                id: baudRateLabel
+                text: "Baud rate"
+            Label:
+                id: unitsUsedLabel
+                text: "Units used"
+
+        BoxLayout:
+            orientation: "vertical"
+            Label:
+                text: "Acceleration"
+                size_hint: 1,.2
+                font_size: 25
+            BoxLayout:
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "X AXIS"
+                            font_size: 20
+                        Label:
+                            id: minValAccX
+                            text: "Min X value"
+                        Label:
+                            id: maxValAccX
+                            text: "Max X value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show X graph"
+                        on_release: root.showgraphaccelerationx()
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Y Axis"
+                            font_size: 20
+                        Label:
+                            id: minValAccY
+                            text: "Min Y value"
+                        Label:
+                            id: maxValAccY
+                            text: "Max Y value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show Y graph"
+                        on_release: root.showgraphaccelerationy()
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Z Axis"
+                            font_size: 20
+                        Label:
+                            id: minValAccZ
+                            text: "Min Z value"
+                        Label:
+                            id: maxValAccZ
+                            text: "Max Z value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show Z graph"
+                        on_release: root.showgraphaccelerationz()
+        BoxLayout:
+            orientation: "vertical"
+            Label:
+                text: "Rotation"
+                size_hint: 1,.2
+                font_size: 25
+            BoxLayout:
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "X Axis"
+                            font_size: 20
+                        Label:
+                            id: minRotAccX
+                            text: "Min X value"
+                        Label:
+                            id: maxRotAccX
+                            text: "Max X value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show X graph"
+                        on_release: root.showgraphrotationx()
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Y Axis"
+                            font_size: 20
+                        Label:
+                            id: minRotAccY
+                            text: "Min Y value"
+                        Label:
+                            id: maxRotAccY
+                            text: "Max Y value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show Y graph"
+                        on_release: root.showgraphrotationy()
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Z Axis"
+                            font_size: 20
+                        Label:
+                            id: minRotAccZ
+                            text: "Min Z value"
+                        Label:
+                            id: maxRotAccZ
+                            text: "Max Z value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show Z graph"
+                        on_release: root.showgraphrotationz()
+        BoxLayout:
+            orientation: "vertical"
+            Label:
+                text: "Others"
+                size_hint: 1,.2
+                font_size: 25
+            BoxLayout:
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Altitude"
+                            font_size: 20
+                        Label:
+                            id: minAlt
+                            text: "Min altitude value"
+                        Label:
+                            id: maxAlt
+                            text: "Max altitude value"
+                    Button:
+                        size_hint: 1, .2
+                        text: "Show altitude graph"
+                        on_release: root.showgraphaltitude()
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Latitude"
+                            font_size: 20
+                        Label:
+                            text: "No relevant info"
+                        Label:
+                            text: "No relevant info"
+                    Button:
+                        size_hint: 1, .2
+                        text: "No relevant info"
+                BoxLayout:
+                    orientation: "vertical"
+                    BoxLayout:
+                        orientation: "vertical"
+                        Label:
+                            text: "Longitude"
+                            font_size: 20
+                        Label:
+                            text: "No relevant info"
+                        Label:
+                            text: "No relevant info"
+                    Button:
+                        size_hint: 1, .2
+                        text: "No relevant info"
+<TestScreen>:
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: "This is a test screen"

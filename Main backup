@@ -1,0 +1,922 @@
+# VERSION 2
+import ast
+import collections
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import matplotlib.pyplot as plt
+import serial
+from kivy.clock import Clock
+from kivy.core.window import Window
+from kivy.garden.matplotlib.backend_kivyagg import FigureCanvasKivyAgg
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivymd.app import MDApp
+
+sm = ScreenManager()
+Window.maximize()
+
+# Serial comunication information
+refreshTime = 0.2  # Each seconds sensor data will update
+comPort = "com3"
+serialBaudRate = 9600
+serialComs = None
+
+accelerationUnits = " m/s^2"
+rotationUnits = " deg/s"
+altitudeUnits = " m"
+
+# Declaration of variables that will contain the sensor data ready to display on the app
+rocketAccelerationX = 52
+rocketAccelerationY = 0
+rocketAccelerationZ = 0
+
+rocketRotationX = 0
+rocketRotationY = 0
+rocketRotationZ = 0
+
+rocketAltitude = 0
+
+rocketLatitude = 0
+rocketLongitude = 0
+
+rocketStatus = "Grounded"
+
+displayUnits = True  # Want to shoe units?
+
+unitChangeCons = 16384.0
+gravity = 9.81  # meters per square second
+giroConstant1 = 250.0
+giroConstant2 = 32768.0
+
+# Arrays to show the information in realtime of the sensor
+# Samples variable indicates how many data is going to be show
+# limits variable indicates the limits on the axis graphs
+
+samplesAcceleration = 50
+dataShowGraphAccelerationX = collections.deque([0] * samplesAcceleration, maxlen=samplesAcceleration)
+dataShowGraphAccelerationY = collections.deque([0] * samplesAcceleration, maxlen=samplesAcceleration)
+dataShowGraphAccelerationZ = collections.deque([0] * samplesAcceleration, maxlen=samplesAcceleration)
+
+limitsAccelerationMin = -80
+limitsAccelerationMax = 80
+
+samplesRotation = 50
+dataShowGraphRotationX = collections.deque([0] * samplesRotation, maxlen=samplesRotation)
+dataShowGraphRotationY = collections.deque([0] * samplesRotation, maxlen=samplesRotation)
+dataShowGraphRotationZ = collections.deque([0] * samplesRotation, maxlen=samplesRotation)
+
+limitsRotationMin = -10
+limitsRotationMax = 10
+
+samplesAltitude = 50
+dataShowGraphAltitude = collections.deque([0] * samplesAltitude, maxlen=samplesAltitude)
+
+limitsAltitudeMin = 0
+limitsAltitudeMax = 65
+
+recordData = False
+
+try:
+    serialComs = serial.Serial(comPort, serialBaudRate)  # Intializes the Com port
+except Exception as e:
+    print(e)
+
+
+class TestScreen(Screen):
+    pass
+
+
+class MainInfoScreen(Screen):
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.a = None
+        self.altitudeLine = None
+        self.yRotationLine = None
+        self.zRotationLine = None
+        self.xRotationLine = None
+        self.zAccelerationLine = None
+        self.yAccelerationLine = None
+        self.altitudeAxes = None
+        self.altitudeGraph = None
+        self.rotationAxes = None
+        self.rotationGraph = None
+        self.accelerationAxes = None
+        self.accelerationGraph = None
+        self.xAccelerationLine = None
+
+        self.accelerationXDataSave = []
+        self.accelerationYDataSave = []
+        self.accelerationZDataSave = []
+
+        self.rotationXDataSave = []
+        self.rotationYDataSave = []
+        self.rotationZDataSave = []
+
+        self.altitudeDataSave = []
+
+        self.latitudeDataSave = []
+        self.longitudeDataSave = []
+
+    def on_enter(self, *args):
+        global serialComs, limitsAltitudeMin, limitsAltitudeMax, limitsAccelerationMin, limitsAccelerationMax
+        # Initialize the serial communication
+
+        # Creates the graphs that will show realtime information of the sensors
+        xminaccelerationgraph = 0
+        xmaxaccelerationgraph = samplesAcceleration - 1
+        yminaccelerationgraph = limitsAccelerationMin
+        ymaxaccelerationgraph = limitsAccelerationMax
+
+        xminrotationgraph = 0
+        xmaxrotationgraph = samplesRotation - 1
+        yminrotationgraph = limitsRotationMin
+        ymaxrotationgraph = limitsRotationMax
+
+        xminaltitudegraph = 0
+        xmaxaltituegraph = samplesAltitude - 1
+        yminaltitudegraph = limitsAltitudeMin
+        ymaxaltitudegraph = limitsAltitudeMax
+
+        self.accelerationGraph = plt.figure()
+        self.accelerationAxes = plt.axes(xlim=(xminaccelerationgraph, xmaxaccelerationgraph),
+                                         ylim=(yminaccelerationgraph, ymaxaccelerationgraph))
+
+        self.rotationGraph = plt.figure()
+        self.rotationAxes = plt.axes(xlim=(xminrotationgraph, xmaxrotationgraph),
+                                     ylim=(yminrotationgraph, ymaxrotationgraph))
+
+        self.altitudeGraph = plt.figure()  # Crea una nueva figura #Create a new figure.
+        self.altitudeAxes = plt.axes(xlim=(xminaltitudegraph, xmaxaltituegraph),
+                                     ylim=(yminaltitudegraph, ymaxaltitudegraph))
+
+        self.xAccelerationLine, = self.accelerationAxes.plot(range(samplesAcceleration), dataShowGraphAccelerationX,
+                                                             label="Aceleración X")
+        self.yAccelerationLine, = self.accelerationAxes.plot(range(samplesAcceleration), dataShowGraphAccelerationY,
+                                                             label="Aceleración Y")
+        self.zAccelerationLine, = self.accelerationAxes.plot(range(samplesAcceleration), dataShowGraphAccelerationZ,
+                                                             label="Aceleración Z")
+
+        self.xRotationLine, = self.rotationAxes.plot(range(samplesRotation), dataShowGraphRotationX,
+                                                     label="Aceleración X")
+        self.yRotationLine, = self.rotationAxes.plot(range(samplesRotation), dataShowGraphRotationY,
+                                                     label="Aceleración Y")
+        self.zRotationLine, = self.rotationAxes.plot(range(samplesRotation), dataShowGraphRotationZ,
+                                                     label="Aceleración Z")
+
+        self.altitudeLine, = self.altitudeAxes.plot(range(samplesAltitude), dataShowGraphAltitude,
+                                                    label="Aceleración X")
+
+        self.a = Clock.schedule_interval(self.updaterocketdata,
+                                         refreshTime)  # Executes de UpdateRocketData method each time that was
+        # declarated previusly in refreshTime or updated in the settings section
+
+    def displaydataongraphs(self, accelerationx, accelerationy, accelerationz, rotationx, rotationy, rotationz,
+                            altitude):
+        #dataShowGraphAccelerationX.append(accelerationx)
+        #print(dataShowGraphAccelerationX)
+
+        #dataShowGraphAccelerationY.append(accelerationy)
+        #dataShowGraphAccelerationZ.append(accelerationz)
+
+        #dataShowGraphRotationX.append(rotationx)
+        #dataShowGraphRotationY.append(rotationy)
+        #dataShowGraphRotationZ.append(rotationz)
+
+        #dataShowGraphAltitude.append(altitude)
+
+        self.accelerationGraph.suptitle("ACELERACIÓN")  # Titulo de la figura # Figure title
+        #self.accelerationAxes.set_ylabel(accelerationUnits)
+        #self.accelerationAxes.set_xlabel("Datos Recibidos")
+
+        self.rotationGraph.suptitle("ROTACIÓN")  # Titulo de la figura # Figure title
+        #self.rotationAxes.set_ylabel(rotationUnits)
+        #self.rotationAxes.set_xlabel("Datos Recibidos")
+
+        self.altitudeGraph.suptitle("ALTURA")  # Titulo de la figura # Figure title
+        #self.altitudeAxes.set_ylabel(altitudeUnits)
+        #self.altitudeAxes.set_xlabel("Datos Recibidos")
+
+        box = self.ids.graphsBox
+        box.clear_widgets()
+
+        #self.xAccelerationLine.set_ydata(dataShowGraphAccelerationX)
+        #self.yAccelerationLine.set_ydata(dataShowGraphAccelerationY)
+        #self.zAccelerationLine.set_ydata(dataShowGraphAccelerationZ)
+
+        self.xRotationLine.set_ydata(dataShowGraphRotationX)
+        self.yRotationLine.set_ydata(dataShowGraphRotationY)
+        self.zRotationLine.set_ydata(dataShowGraphRotationZ)
+
+        self.altitudeLine.set_ydata(dataShowGraphAltitude)
+
+        accelerationgraphwidget = FigureCanvasKivyAgg(figure=self.accelerationGraph)
+        rotationgraphwidget = FigureCanvasKivyAgg(figure=self.rotationGraph)
+        altitudegraphwidget = FigureCanvasKivyAgg(figure=self.altitudeGraph)
+
+        box.add_widget(accelerationgraphwidget)
+        box.add_widget(rotationgraphwidget)
+        box.add_widget(altitudegraphwidget)
+
+    def updaterocketdata(self, *args):
+
+        global rocketAccelerationX, rocketAccelerationY, rocketAccelerationZ, rocketRotationX, rocketRotationY, \
+            rocketRotationZ, rocketAltitude, rocketLatitude, rocketLongitude, rocketStatus
+
+        try:
+            # Get data from serial port, change it to string, identify data between the two identificators :; and
+            # then split the data with other indicators
+            serialdata = serialComs.readline()
+
+            serialdata = str(serialdata)
+            print(serialdata)
+            pos = serialdata.index(":")
+            newstring = serialdata[pos + 1:]
+
+            pos2 = newstring.index(";")
+            newstring = newstring[:pos2]
+            print(newstring + "  1")
+
+            pos = newstring.index("_")
+            rocketAccelerationX = newstring[:pos]
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  2")
+
+            pos = newstring.index("^")
+            rocketAccelerationY = newstring[:pos]
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  3")
+
+            pos = newstring.index("/")
+            rocketAccelerationZ = newstring[:pos]
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  4")
+
+            pos = newstring.index("*")
+            rocketRotationX = float(newstring[:pos])
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  5")
+
+            pos = newstring.index("!")
+            rocketRotationY = float(newstring[:pos])
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  6")
+
+            pos = newstring.index("#")
+            rocketRotationZ = float(newstring[:pos])
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  7")
+
+            pos = newstring.index("%")
+            rocketAltitude = float(newstring[:pos])
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  8")
+
+            pos = newstring.index("?")
+            rocketLatitude = float(newstring[:pos])
+            newstring = newstring[pos + 1:]
+            print(newstring+ "  9")
+
+            pos = newstring.index(",")
+            rocketLongitude = float(newstring[:pos])
+            rocketStatus = newstring[pos + 1:]
+            print(newstring+ "  10")
+
+            if displayUnits:  # Use the units configuration with the MPU 6050 sensor
+                # Unit change to meters and seconds and degrees/ seconds
+                rocketAccelerationX = float(rocketAccelerationX) * gravity / unitChangeCons
+                rocketAccelerationY = float(rocketAccelerationY) * gravity / unitChangeCons
+                rocketAccelerationZ = float(rocketAccelerationZ) * gravity / unitChangeCons
+
+                rocketRotationX = float(rocketRotationX) * giroConstant1 / giroConstant2
+                rocketRotationY = float(rocketRotationY) * giroConstant1 / giroConstant2
+                rocketRotationZ = float(rocketRotationZ) * giroConstant1 / giroConstant2
+
+                self.ids.rocketInfo.text = str(rocketStatus)
+
+                self.ids.rocketAccelerationX.text = "X Acceleration: " + str(rocketAccelerationX) + accelerationUnits
+                self.ids.rocketAccelerationY.text = "Y Acceleration: " + str(rocketAccelerationY) + accelerationUnits
+                self.ids.rocketAccelerationZ.text = "Z Acceleration: " + str(rocketAccelerationZ) + accelerationUnits
+
+                self.ids.rocketRotationX.text = "X Rotation: " + str(rocketRotationX) + rotationUnits
+                self.ids.rocketRotationY.text = "Y Rotation: " + str(rocketRotationY) + rotationUnits
+                self.ids.rocketRotationZ.text = "Z Rotation: " + str(rocketRotationZ) + rotationUnits
+
+                self.ids.rocketAltitude.text = "Altitude: " + str(rocketAltitude) + altitudeUnits
+
+                self.ids.rocketLatitude.text = "Latitude: " + str(rocketLatitude)
+                self.ids.rocketLongitude.text = "Longitude: " + str(rocketLongitude)
+
+            else:  # Do not show any unit and make not conversion between units
+                self.ids.rocketInfo.text = str(rocketStatus)
+
+                self.ids.rocketAccelerationX.text = "X Acceleration: " + str(rocketAccelerationX)
+                self.ids.rocketAccelerationY.text = "Y Acceleration: " + str(rocketAccelerationY)
+                self.ids.rocketAccelerationZ.text = "Z Acceleration: " + str(rocketAccelerationZ)
+
+                self.ids.rocketRotationX.text = "X Rotation: " + str(rocketRotationX)
+                self.ids.rocketRotationY.text = "Y Rotation: " + str(rocketRotationY)
+                self.ids.rocketRotationZ.text = "Z Rotation: " + str(rocketRotationZ)
+
+                self.ids.rocketAltitude.text = "Altitude: " + str(rocketAltitude)
+
+                self.ids.rocketLatitude.text = "Latitude: " + str(rocketLatitude)
+                self.ids.rocketLongitude.text = "Latitude: " + str(rocketLongitude)
+
+            try:
+                self.displaydataongraphs(rocketAccelerationX, rocketAccelerationY, rocketAccelerationZ, rocketRotationX,
+                                     rocketRotationY, rocketRotationZ, rocketAltitude)
+            except Exception as e:
+                print(e)
+            # Record data
+            if recordData:
+                self.accelerationXDataSave.append(rocketAccelerationX)
+                self.accelerationYDataSave.append(rocketAccelerationY)
+                self.accelerationZDataSave.append(rocketAccelerationZ)
+
+                self.rotationXDataSave.append(rocketRotationX)
+                self.rotationYDataSave.append(rocketRotationY)
+                self.rotationZDataSave.append(rocketRotationZ)
+
+                self.altitudeDataSave.append(rocketAltitude)
+
+                self.longitudeDataSave.append(rocketLongitude)
+                self.latitudeDataSave.append(rocketLatitude)
+
+        except Exception as e:
+            print(e)
+            self.shownodata()
+
+    def shownodata(self):
+
+        self.ids.rocketInfo.text = "No data"
+
+        self.ids.rocketAccelerationX.text = "X Acceleration: No data"
+        self.ids.rocketAccelerationY.text = "Y Acceleration: No data"
+        self.ids.rocketAccelerationZ.text = "Z Acceleration: No data"
+
+        self.ids.rocketRotationX.text = "X Rotation: No data"
+        self.ids.rocketRotationY.text = "Y Rotation: No data"
+        self.ids.rocketRotationZ.text = "Z Rotation: No data"
+
+        self.ids.rocketAltitude.text = "Altitude: No data"
+
+        self.ids.rocketLatitude.text = "Latitude: No data"
+        self.ids.rocketLongitude.text = "Latitude: No data"
+
+        box = self.ids.graphsBox
+        box.clear_widgets()
+
+        # Shows the graphs on 0
+
+        for i in range(samplesAcceleration):
+            dataShowGraphAccelerationX.append(0)
+            dataShowGraphAccelerationY.append(0)
+            dataShowGraphAccelerationZ.append(0)
+
+        for i in range(samplesRotation):
+            dataShowGraphRotationX.append(0)
+            dataShowGraphRotationY.append(0)
+            dataShowGraphRotationZ.append(0)
+
+        for i in range(samplesAltitude):
+            dataShowGraphAltitude.append(0)
+
+        self.xAccelerationLine.set_ydata(dataShowGraphAccelerationX)
+        self.yAccelerationLine.set_ydata(dataShowGraphAccelerationY)
+        self.zAccelerationLine.set_ydata(dataShowGraphAccelerationZ)
+
+        self.xRotationLine.set_ydata(dataShowGraphRotationX)
+        self.yRotationLine.set_ydata(dataShowGraphRotationY)
+        self.zRotationLine.set_ydata(dataShowGraphRotationZ)
+
+        self.altitudeLine.set_ydata(dataShowGraphAltitude)
+
+        accelerationgraphwidget = FigureCanvasKivyAgg(figure=self.accelerationGraph)
+        rotationgraphwidget = FigureCanvasKivyAgg(figure=self.rotationGraph)
+        altitudegraphwidget = FigureCanvasKivyAgg(figure=self.altitudeGraph)
+
+        box.add_widget(accelerationgraphwidget)
+        box.add_widget(rotationgraphwidget)
+        box.add_widget(altitudegraphwidget)
+
+    def savedatatxt(self):
+        try:
+            # Opens the file explorer to select where to save the data
+            root = tk.Tk()
+            root.withdraw()
+
+            filepath = filedialog.asksaveasfilename(defaultextension=".txt",
+                                                    filetypes=(("Text files", "*.txt"), ("all files", "*.*")))
+
+            with open(filepath, 'w') as file:
+                # Save the data with the name indicator and the values recorded
+                file.write("refreshTime:" + str(refreshTime) + '\n')
+                file.write("serialBaudRate:" + str(serialBaudRate) + '\n')
+                file.write("UnitsUsed:" + str(displayUnits) + '\n')
+
+                file.write("AccelerationX:" + str(self.accelerationXDataSave) + '\n')
+                file.write("AccelerationY:" + str(self.accelerationYDataSave) + '\n')
+                file.write("AccelerationZ:" + str(self.accelerationZDataSave) + '\n')
+
+                file.write("RotationX:" + str(self.rotationXDataSave) + '\n')
+                file.write("RotationY:" + str(self.rotationYDataSave) + '\n')
+                file.write("RotationZ:" + str(self.rotationZDataSave) + '\n')
+
+                file.write("Altitude:" + str(self.altitudeDataSave) + '\n')
+                file.write("Longitude:" + str(self.longitudeDataSave) + '\n')
+                file.write("Latitude:" + str(self.latitudeDataSave) + '\n')
+
+                self.ids.recordDataButton.text = "Data saved successfully"
+                self.ids.recordDataButton.disabled = True
+        except Exception as e:
+            print(e)
+            global recordData
+            recordData = True
+
+    def recorddataprocess(self):
+        # Method that saves or record the data depending on what the user have selected
+        global recordData
+        if recordData:
+            recordData = False
+            self.savedatatxt()
+        else:
+            recordData = True
+            self.ids.recordDataButton.text = "Save data"
+
+
+class SettingsMainInfoScreen(Screen):
+    def savechangesonsettingsandgomaininfoscreen(self):
+        # Gets the input needed to start serial communication and to show the graphs
+        global comPort, refreshTime, limitsAccelerationMin, limitsAccelerationMax, limitsAltitudeMin, limitsAltitudeMax, limitsRotationMin, limitsRotationMax, serialBaudRate
+        comPort = self.ids.comPort.text
+        refreshTime = float(self.ids.refreshRate.text)
+        limitsAccelerationMin = float(self.ids.minAcceleration.text)
+        limitsAccelerationMax = float(self.ids.maxAcceleration.text)
+        limitsRotationMin = float(self.ids.minRotation.text)
+        limitsRotationMax = float(self.ids.maxRotation.text)
+        limitsAltitudeMin = float(self.ids.minAltitude.text)
+        limitsAltitudeMax = float(self.ids.maxAltitude.text)
+        serialBaudRate = int(self.ids.baudRate.text)
+
+        sm.current = "main_info_screen"
+
+
+class DataAnalysisScreen(Screen):
+    def getdata(self):
+        try:
+            # Opens the file explorer to get the data file to display the analysis
+            root = tk.Tk()
+            root.withdraw()
+            filepath = filedialog.askopenfilename(filetypes=[("Text files", "*.txt"), ("all files", "*.*")])
+            with open(filepath, 'r') as file:
+                data = file.read()  # Read the file
+                lines = data.split("\n")  # Split all the lines that are on the file as an aray
+
+                print(lines)
+                # Save the information from the lines as string
+                self.refreshTimeGetFromData = lines[0].split(':')[1]
+                self.serialBaudRateGetFromData = lines[1].split(':')[1]
+                self.unitsUsedGetFromData = lines[2].split(':')[1]
+
+                # Save the information from the lines as arrays
+                self.accelerationXFromData = ast.literal_eval(lines[3].split(':')[1])
+                self.accelerationYFromData = ast.literal_eval(lines[4].split(':')[1])
+                self.accelerationZFromData = ast.literal_eval(lines[5].split(':')[1])
+
+                self.rotationXFromData = ast.literal_eval(lines[6].split(':')[1])
+                self.rotationYFromData = ast.literal_eval(lines[7].split(':')[1])
+                self.rotationZFromData = ast.literal_eval(lines[8].split(':')[1])
+
+                self.altitudeFromData = ast.literal_eval(lines[9].split(':')[1])
+
+                self.longitudeFromData = ast.literal_eval(lines[10].split(':')[1])
+                self.latitudeFromData = ast.literal_eval(lines[11].split(':')[1])
+
+                # Show data on the app
+                self.ids.refreshRateLabel.text = "Refresh rate used: " + str(self.refreshTimeGetFromData)
+                self.ids.baudRateLabel.text = "Serial baud rate used: " + str(
+                    self.serialBaudRateGetFromData)
+
+                if self.unitsUsedGetFromData == "True":
+                    self.ids.unitsUsedLabel.text = "Units used: meters, degrees and seconds"
+                    self.units = 1
+                else:
+                    self.ids.unitsUsedLabel.text = "Units used: None"
+                    self.units = 0
+
+                # MOSTRAR INFORMACION DE DATOS
+                # self.altitudeFromData = self.altitudeFromData.pop()
+
+                # print(self.altitudeFromData)
+                # print("Length " + len(self.altitudeFromData))
+                # print("Minimo " + min(self.altitudeFromData))
+                # print("Maximo " + max(self.altitudeFromData))
+
+                print(self.altitudeFromData)
+                self.altitudeFromData.pop()
+                print(self.altitudeFromData)
+
+                self.maxAccelerationX = max(self.accelerationXFromData)
+                self.minAccelerationX = min(self.accelerationXFromData)
+                self.maxAccelerationY = max(self.accelerationYFromData)
+                self.minAccelerationY = min(self.accelerationYFromData)
+                self.maxAccelerationZ = max(self.accelerationZFromData)
+                self.minAccelerationZ = min(self.accelerationZFromData)
+
+                self.maxRotationX = max(self.rotationXFromData)
+                self.minRotationX = min(self.rotationXFromData)
+                self.maxRotationY = max(self.rotationYFromData)
+                self.minRotationY = min(self.rotationYFromData)
+                self.maxRotationZ = max(self.rotationZFromData)
+                self.minRotationZ = min(self.rotationZFromData)
+
+                self.maxAltitude = max(self.altitudeFromData)
+                self.minAltitude = min(self.altitudeFromData)
+
+                self.ids.minValAccX.text = "Min Value: " + str(self.minAccelerationX)
+                self.ids.maxValAccX.text = "Max Value: " + str(self.maxAccelerationX)
+
+                self.ids.minValAccY.text = "Min Value: " + str(self.minAccelerationY)
+                self.ids.maxValAccY.text = "Max Value: " + str(self.maxAccelerationY)
+
+                self.ids.minValAccZ.text = "Min Value: " + str(self.minAccelerationZ)
+                self.ids.maxValAccZ.text = "Max Value: " + str(self.maxAccelerationZ)
+
+                self.ids.minRotAccX.text = "Min Value: " + str(self.minRotationX)
+                self.ids.maxRotAccX.text = "Max Value: " + str(self.maxRotationX)
+
+                self.ids.minRotAccY.text = "Min Value: " + str(self.minRotationY)
+                self.ids.maxRotAccY.text = "Max Value: " + str(self.maxRotationY)
+
+                self.ids.minRotAccZ.text = "Min Value: " + str(self.minRotationZ)
+                self.ids.maxRotAccZ.text = "Max Value: " + str(self.maxRotationZ)
+
+                self.ids.minAlt.text = "Min Value: " + str(self.minAltitude)
+                self.ids.maxAlt.text = "Max Value: " + str(self.maxAltitude)
+
+
+
+        except Exception as e:
+            print(e)
+
+    def showgraphaccelerationx(self):
+
+        try:
+            seconds = []
+            lastvalue = 0
+
+            # Creates an array that contains the split of seconds to show the information in the graphs in seconds
+            for i in range(len(self.accelerationXFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.accelerationXFromData) / dataperseconds
+
+            # Creates the limits axis of the graph with the min and max value of the data
+
+            xminaccelerationgraph = 0
+            xmaxaccelerationgraph = secondspassed  # len(self.altitudeFromData)#secondspassed #El tiempo
+            yminaccelerationgraph = float(min(self.accelerationXFromData)) - 5  # Valor menor del array
+            ymaxaccelerationgraph = float(max(self.accelerationXFromData)) + 5  # Valor mayor del array
+
+            # Creates the graph
+            fig1 = plt.figure("Aceleración X")
+            fig2 = plt.axes(xlim=(xminaccelerationgraph, xmaxaccelerationgraph),
+                            ylim=(yminaccelerationgraph, ymaxaccelerationgraph))
+
+            line, = fig2.plot(seconds, self.accelerationXFromData,  # Line,
+                              label="Aceleración X")
+
+            # Creates all the labels of information to show
+            fig1.suptitle("Aceleración en eje X")
+
+            if self.units == 1:
+                fig2.set_ylabel("m/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()  # Show the graph in a window
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphaccelerationy(self):
+
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.accelerationYFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.accelerationYFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondspassed #El tiempo
+            ymin = float(min(self.accelerationYFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.accelerationYFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure("Aceleración Y")
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.accelerationYFromData)
+
+            fig1.suptitle("Aceleración en eje Y")
+
+            if self.units == 1:
+                fig2.set_ylabel("m/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphaccelerationz(self):
+
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.accelerationZFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.accelerationZFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondspassed #El tiempo
+            ymin = float(min(self.accelerationZFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.accelerationZFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure("Aceleracion Z")
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.accelerationZFromData)
+
+            fig1.suptitle("Aceleración en eje Z")
+
+            if self.units == 1:
+                fig2.set_ylabel("m/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphrotationx(self):
+
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.rotationXFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.rotationXFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondsPassed #El tiempo
+            ymin = float(min(self.rotationXFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.rotationXFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure("Rotación X")
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.rotationXFromData)
+
+            fig1.suptitle("Rotación en eje X")
+
+            if self.units == 1:
+                fig2.set_ylabel("deg/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphrotationy(self):
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.rotationYFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.rotationYFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondspassed #El tiempo
+            ymin = float(min(self.rotationYFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.rotationYFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure("Rotación Y")
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.rotationYFromData)
+
+            fig1.suptitle("Rotación en eje Y")
+
+            if self.units == 1:
+                fig2.set_ylabel("deg/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphrotationz(self):
+
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.rotationZFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.rotationZFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondsPassed #El tiempo
+            ymin = float(min(self.rotationZFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.rotationZFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure("Rotación Z")
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.accelerationZFromData)
+
+            fig1.suptitle("Rotación en eje Z")
+
+            if self.units == 1:
+                fig2.set_ylabel("deg/s^2")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+    def showgraphaltitude(self):
+        try:
+            seconds = []
+            lastvalue = 0
+
+            for i in range(len(self.altitudeFromData)):
+                seconds.append(lastvalue)
+                lastvalue += float(self.refreshTimeGetFromData)
+
+            plt.close()
+            plt.close()
+            plt.close()
+
+            dataperseconds = 1 / float(self.refreshTimeGetFromData)
+            secondspassed = len(self.altitudeFromData) / dataperseconds
+
+            xmin = 0
+            xmax = secondspassed  # len(self.altitudeFromData)#secondspassed #El tiempo
+            ymin = float(min(self.altitudeFromData)) - 5  # Valor menor del array
+            ymax = float(max(self.altitudeFromData)) + 5  # Valor mayor del array
+
+            fig1 = plt.figure(10)
+            fig2 = plt.axes(xlim=(xmin, xmax),
+                            ylim=(ymin, ymax))
+
+            line, = fig2.plot(seconds, self.altitudeFromData)
+
+            fig1.suptitle("Altitud")
+            if self.units == 1:
+                fig2.set_ylabel("m")
+            else:
+                fig2.set_ylabel("Sin unidades")
+
+            fig2.set_xlabel("Segundos")
+
+            plt.show()
+        except Exception as e:
+            print(e)
+            root = tk.Tk()
+            root.withdraw()
+
+            messagebox.showerror("Error", "Data is corrupted or empty")
+
+
+class AllFunctionsScreen(Screen):
+    pass
+
+
+class MissionControlApp(MDApp):
+    App_Name = "Mission Control System"
+
+    def build(self):
+        sm.add_widget(AllFunctionsScreen(name='all_functions_screen'))
+        sm.add_widget(MainInfoScreen(name='main_info_screen'))
+        sm.add_widget(SettingsMainInfoScreen(name='settings_main_info_screen'))
+        sm.add_widget(DataAnalysisScreen(name='data_analysis_screen'))
+        sm.add_widget(TestScreen(name='test_screen'))
+
+        return sm
+
+    def changeunitstometers(self):
+        global displayUnits
+        displayUnits = True
+
+    def showunits(self):
+        global displayUnits
+        displayUnits = False
+
+    def gosettingsmaininfoscreen(self):
+        sm.current = "settings_main_info_screen"
+
+    def gomainscreen(self, a):
+        sm.current = "main_info_screen"
+        # sm.transition = "left"
+
+    def goinformationscreen(self):
+        sm.current = "information_screen"
+
+    def gotestscreen(self):
+        sm.current = "test_screen"
+
+    def godataanalysisscreen(self):
+        sm.current = "data_analysis_screen"
+
+
+MissionControlApp().run()

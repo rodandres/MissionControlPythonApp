@@ -1,0 +1,12 @@
+RefreshTime:0.2
+SerialComsNumber:9600
+UnitsUsed:True
+AccelerationX:[]
+AccelerationY:[]
+AccelerationZ:[]
+RotationX:[]
+RotationY:[]
+RotationZ:[]
+Altitude:[]
+Longitude:[]
+Latitude:[]

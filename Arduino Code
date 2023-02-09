@@ -1,0 +1,74 @@
+
+#include "I2Cdev.h"
+#include "MPU6050.h"
+#include "Wire.h"
+int a, b, c, d, e, f, g = 0, h = 0, i = 0;
+
+MPU6050 IMU;
+int ax, ay, az;
+int gx, gy, gz;
+
+float accelerationX, accelerationY, accelerationZ; //Variables to get acceleration in meters per square seconds
+float giroscopeX, giroscopeY, giroscopeZ;          //Variables to get giroscope in deg per seconds
+
+unsigned long lastTime, sampleTime = 200;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+}
+
+void loop() {
+  //Serial.println("1A2"); //  Serial.println("1A2B3C4D5E6F7G8H9I10");  //Serial.println("1:2;3/4*5-6#7%8?9¡10");
+
+
+  if (millis() - lastTime >= sampleTime) {
+    lastTime = millis();
+    IMU.getAcceleration(&ax, &ay, &az);
+    IMU.getRotation(&gx, &gy, &gz);
+
+    accelerationX = ax * (9.81 / 16384.0);
+    accelerationY = ay * (9.81 / 16384.0);
+    accelerationZ = az * (9.81 / 16384.0);
+
+    giroscopeX = gx * (250.0 / 32768.0);
+    giroscopeY = gy * (250.0 / 32768.0);
+    giroscopeZ = gz * (250.0 / 32768.0);
+
+    Serial.println(":" + String(accelerationX) + "_" + String(accelerationY) + "^" + String(accelerationZ) + "/" + String(giroscopeX) + "*" + String(giroscopeY) + "!" + String(giroscopeZ) + "#" + String(g) + "%" + String(h) + "?" + String(i) + ",""Grounded" + ";");
+  }
+}
+
+
+
+
+/*
+  int a, b, c, d, e, f, g, h, i = 0;
+  unsigned long lastTime, sampleTime = 200;
+
+  void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  }
+
+  void loop() {
+  //Serial.println("1A2"); //  Serial.println("1A2B3C4D5E6F7G8H9I10");  //Serial.println("1:2;3/4*5-6#7%8?9¡10");
+  if (millis() - lastTime >= sampleTime) {
+    lastTime = millis();
+    a = random(1, 10);
+    b = random(1, 10);
+    c = random(1, 10);
+    d = random(1, 10);
+    e = random(1, 10);
+    f = random(1, 10);
+    g = random(1, 10);
+    h = random(1, 10);
+    i = random(1, 10);
+
+    Serial.println(":" + String(a) + "_" + String(b) + "^" + String(c) + "/" + String(d) + "*" + String(e) + "!" + String(f) + "#" + String(g) + "%" + String(h) + "?" + String(i) + ",""Grounded" + ";");
+  }
+  }
+
+*/

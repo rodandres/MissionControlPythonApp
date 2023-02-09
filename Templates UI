@@ -1,0 +1,76 @@
+Label:
+    text: "Ponga el puerto serial que usará"
+    background_color: (0,0,0,1)
+    canvas.before:
+        Color:
+            rgba: self.background_color
+        Rectangle:
+            size: self.size
+            pos: self.pos
+
+
+
+MDTopAppBar:
+    title: "app.App_Name"
+    anchor_title: "left"
+    right_action_items: [["menu", lambda anyvar:nav_drawer.set_state("open")]]
+
+
+<InformationScreen>:
+    MDBoxLayout:
+        orientation: "vertical"
+
+        MDTopAppBar:
+            title: app.App_Name
+            anchor_title: "left"
+            left_action_items: [["arrow-left-thick", app.goMainScreen]]
+
+        BoxLayout:
+            orientation: "vertical"
+            md_bg_color: "#1E1E15"
+            MDLabel:
+                text: "IMPORTANT INFORMATION" + "/n" +"hola"
+                size_hint: 1,.1
+            ScrollView:
+                StackLayout:
+                    orientation: 'lr-tb'
+                    spacing: (0,2)
+                    MDLabel:
+                        multiline: True
+                        text: "La aplicación recibe los siguientes datos:"
+                    MDLabel:
+                        text: "* Aceleración en el eje x"
+                    MDLabel:
+                        text: "* Aceleración en el eje y"
+                    MDLabel:
+                        text: "* Aceleración en el eje z"
+                    MDLabel:
+                        text: "* Rotación en el eje x"
+                    MDLabel:
+                        text: "* Rotación en el eje y"
+                    MDLabel:
+                        text: "* Rotación en el eje z"
+                    MDLabel:
+                        text: "* Altitud"
+                    MDLabel:
+                        text: "* Coordenada de longitud"
+                    MDLabel:
+                        text: "* Coordenada de latitud"
+                    MDLabel:
+                        text: "* Estado del cohete"
+                    MDLabel:
+                        multiline: True
+                        text: "Los valores pueden ser tanto enteros como flotantes. Y en el caso del estado del cohete puede ser una cadena de texto. Todos los datos deben ser enviados al mismo tiempo por el serial del computador que de usa de la forma que se detalla a continuación. En caso de no disponer de un valor se debe poner 0 para evitar errores en los cálculos del programa."
+                    MDLabel:
+                        multiline: True
+                        text: "El programa está diseñado principalmente para trabajar con los datos del sensor MPU 6050. No obstante, puede trabajar con cualquier señal enviada mediana el puerto serial. El puerto serial que de usa puede ser actualizado desde la configuración dónde solo se debe poner el número del puerto"
+                    MDLabel:
+                        multiline: True
+                        text: "Ya que el programa está diseñado para el sensor MPU 60-50, el manejo de unidades se enfoca en este sensor de modo que solo se debe mandar el valor que de obtenga en el sensor y la aplicación hará el cambio de unidades respectivo, puede cambiarse entre metros-segundos y kilómetros -hora. En caso de que se trabaje con otro sensor u otras unidades, se puede elegir la opción No Units de modo que el programa muestra los datos tal cómo son enviados por el puerto serial."
+                    MDLabel:
+                        multiline: True
+                        text: "Está aplicación en su versión 1 fue desarrollada por Andrés Rodríguez."
+                    MDLabel:
+                        multiline: True
+                        text: "Para mayor información, comentarios, sugerencias o quejas contactarse al correo andreswii6@hotmail.com o andres.rodriguez10@udea.edu.co"
+
